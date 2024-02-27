@@ -5,7 +5,7 @@
 #define MAX_TOKEN_LENGTH 100
 
 typedef enum {
-    TOKEN_EOF,
+    TOKEN_END,
     TOKEN_IDENTIFIER,
     TOKEN_KEYWORD,
     TOKEN_OPERATOR,
@@ -19,34 +19,32 @@ typedef struct {
     char lexeme[MAX_TOKEN_LENGTH];
 } Token;
 
-Token get_next_token(const char **input) {
+Token get_next_token(FILE *file) {
     Token token;
-    const char *ptr = *input;
-    char c = *ptr;
+    char c = fgetc(file);
 
     // Skip whitespace
     while (isspace(c)) {
-        c = *(++ptr);
+        c = fgetc(file);
     }
 
-    if (c == '\0') {
-        token.type = TOKEN_EOF;
+    if (c == EOF) {
+        token.type = TOKEN_END;
         token.lexeme[0] = '\0';
     } else if (isalpha(c) || c == '_') {
         // Identifier or keyword
         int i = 0;
         token.lexeme[i++] = c;
-        while ((c = *(++ptr)) != '\0' && (isalnum(c) || c == '_')) {
+        while ((c = fgetc(file)) != EOF && (isalnum(c) || c == '_')) {
             token.lexeme[i++] = c;
         }
         token.lexeme[i] = '\0';
-        *input = ptr; // Update pointer position
         // Check if it's a keyword
         if (strcmp(token.lexeme, "if") == 0 ||
             strcmp(token.lexeme, "else") == 0 ||
             strcmp(token.lexeme, "while") == 0 ||
             strcmp(token.lexeme, "do") == 0 ||
-            strcmp(token.lexeme, "until") == 0||
+            strcmp(token.lexeme, "until") == 0 ||
             strcmp(token.lexeme, "puts") == 0) {
             token.type = TOKEN_KEYWORD;
         } else {
@@ -57,25 +55,22 @@ Token get_next_token(const char **input) {
         token.type = TOKEN_LITERAL;
         int i = 0;
         token.lexeme[i++] = c;
-        while ((c = *(++ptr)) != '\0' && isdigit(c)) {
+        while ((c = fgetc(file)) != EOF && isdigit(c)) {
             token.lexeme[i++] = c;
         }
         token.lexeme[i] = '\0';
-        *input = ptr; // Update pointer position
     } else if (c == '+' || c == '-' || c == '*' || c == '/' ||
                c == '=' || c == '<' || c == '>') {
         // Operator
         token.type = TOKEN_OPERATOR;
         int i = 0;
         token.lexeme[i++] = c;
-        c = *(++ptr);
-        if ((c == '=' && (token.lexeme[0] == '<' || token.lexeme[0] == '>')) ||
-            (token.lexeme[0] == '=' && c == '=')) {
+        if ((c = fgetc(file)) != EOF && ((c == '=' && (token.lexeme[0] == '<' || token.lexeme[0] == '>')) ||
+            (token.lexeme[0] == '=' && c == '='))) {
             // Compound operators or equality operator
             token.lexeme[i++] = c;
-            *input = ptr + 1; // Update pointer position
         } else {
-            *input = ptr; // Update pointer position
+            ungetc(c, file); // Put the character back to the input stream
         }
         token.lexeme[i] = '\0';
     } else if (c == '#') {
@@ -83,32 +78,29 @@ Token get_next_token(const char **input) {
         token.type = TOKEN_COMMENT;
         int i = 0;
         token.lexeme[i++] = c;
-        while ((c = *(++ptr)) != '\0' && c != '\n') {
+        while ((c = fgetc(file)) != EOF && c != '\n') {
             token.lexeme[i++] = c;
         }
         token.lexeme[i] = '\0';
-        *input = ptr; // Update pointer position
     } else if (c == '\n') {
         token.type = TOKEN_NEWLINE;
         token.lexeme[0] = c;
         token.lexeme[1] = '\0';
-        *input = ptr + 1; // Update pointer position
     } else {
         // Unknown token
-        token.type = TOKEN_EOF;
+        token.type = TOKEN_END;
         token.lexeme[0] = c;
         token.lexeme[1] = '\0';
-        *input = ptr + 1; // Update pointer position
     }
     return token;
 }
 
-void print_lexer_table(const char *input) {
+void print_lexer_table(FILE *file) {
     printf("| %-20s | %-20s |\n", "Token Type", "Lexeme");
     printf("|----------------------|----------------------|\n");
     Token token;
     do {
-        token = get_next_token(&input);
+        token = get_next_token(file);
         const char *output = NULL;
         switch (token.type) {
             case TOKEN_IDENTIFIER:
@@ -134,14 +126,19 @@ void print_lexer_table(const char *input) {
                 break;
         }
         printf("| %-20s | %-20s |\n", output, token.lexeme);
-    } while (token.type != TOKEN_EOF);
+    } while (token.type != TOKEN_END);
 }
 
 int main() {
-    const char *input = "num = 0\n"
-                        "until num == 10 do\n"
-                        "  puts num += 1\n"
-                        "end\n";
-    print_lexer_table(input);
+    FILE *file;
+    file = fopen("C:\\Users\\hv070\\Documents\\Lexer-for-Ruby\\input.txt", "r"); // Open the file for reading
+    if (file == NULL) {
+        printf("Failed to open the file.\n");
+        return 1;
+    }
+
+    print_lexer_table(file);
+
+    fclose(file); // Close the file
     return 0;
 }

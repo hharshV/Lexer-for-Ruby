@@ -1,0 +1,5 @@
+num = 0
+while num < 8 do
+  puts num += 1
+end
+		
